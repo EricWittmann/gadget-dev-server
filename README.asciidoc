@@ -1,0 +1,16 @@
+gadget-dev-server
+================
+
+Qickstart Development Environment for JBoss Overlord Gadget Server.
+
+Run From Maven
+~~~~~~~~~~~~~~
+----
+mvn -Prun clean package
+----
+
+Run From Eclipse
+~~~~~~~~~~~~~~~~
+
+Just right-click on GadgetJettyDevServer and choose Run As->Java Application.
+

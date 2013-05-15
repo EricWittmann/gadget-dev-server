@@ -1,5 +1,5 @@
 gadget-dev-server
-=================
+-----------------
 Qickstart Development Environment for JBoss Overlord Gadget Server.
 
 Run From Maven

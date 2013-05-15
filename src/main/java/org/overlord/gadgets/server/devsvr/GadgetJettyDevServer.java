@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.overlord.rtgov.devsvr;
+package org.overlord.gadgets.server.devsvr;
 
 import java.io.File;
 import java.net.URL;
@@ -59,7 +59,7 @@ import org.jboss.resteasy.plugins.server.servlet.HttpServletDispatcher;
  * Dev environment bootstrapper for rtgov/bootstrapper.
  * @author eric.wittmann@redhat.com
  */
-public class RtGovJettyDevServer {
+public class GadgetJettyDevServer {
 
     /**
      * Main entry point.
@@ -70,14 +70,14 @@ public class RtGovJettyDevServer {
         long startTime = System.currentTimeMillis();
         System.out.println("**** Starting up the Gadget Server in jetty 9...");
 
-        RtGovDevServerEnvironment environment = RtGovDevServerEnvironment.discover(args);
+        GadgetDevServerEnvironment environment = GadgetDevServerEnvironment.discover(args);
         environment.createAppConfigs();
 
         URL[] clURLs = new URL[] {
                 new File(environment.getGadgetServerWebAppDir(), "WEB-INF/classes").toURI().toURL()
         };
         // Set up the classloader.
-        ClassLoader cl = new URLClassLoader(clURLs, RtGovJettyDevServer.class.getClassLoader());
+        ClassLoader cl = new URLClassLoader(clURLs, GadgetJettyDevServer.class.getClassLoader());
         Thread.currentThread().setContextClassLoader(cl);
 
         /* *********

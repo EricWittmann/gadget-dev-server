@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.overlord.rtgov.devsvr;
+package org.overlord.gadgets.server.devsvr;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -35,14 +35,14 @@ import org.overlord.sramp.atom.archive.ArchiveUtils;
  * Holds information about the RTGov development runtime environment.
  * @author eric.wittmann@redhat.com
  */
-public class RtGovDevServerEnvironment {
+public class GadgetDevServerEnvironment {
 
     /**
      * Determine the current runtime environment.
      * @param args
      */
-    public static RtGovDevServerEnvironment discover(String[] args) {
-        final RtGovDevServerEnvironment environment = new RtGovDevServerEnvironment(args);
+    public static GadgetDevServerEnvironment discover(String[] args) {
+        final GadgetDevServerEnvironment environment = new GadgetDevServerEnvironment(args);
         Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
             @Override
             public void run() {
@@ -73,7 +73,7 @@ public class RtGovDevServerEnvironment {
      * Constructor.
      * @param args
      */
-    private RtGovDevServerEnvironment(String[] args) {
+    private GadgetDevServerEnvironment(String[] args) {
         findTargetDir();
         findGadgetServerWebAppDir();
         findGadgetWebWebAppDir();
@@ -157,8 +157,8 @@ public class RtGovDevServerEnvironment {
      * @return the maven target dir
      */
     private void findTargetDir() {
-        String path = RtGovJettyDevServer.class.getClassLoader()
-                .getResource(RtGovJettyDevServer.class.getName().replace('.', '/') + ".class").getPath();
+        String path = GadgetJettyDevServer.class.getClassLoader()
+                .getResource(GadgetJettyDevServer.class.getName().replace('.', '/') + ".class").getPath();
         if (path == null) {
             throw new RuntimeException("Failed to find target directory.");
         }
@@ -321,7 +321,7 @@ public class RtGovDevServerEnvironment {
 
         System.out.println("\nSearching for web app: " + webAppName);
         System.out.println("------------------------------------------");
-        URLClassLoader urlCL = (URLClassLoader) RtGovJettyDevServer.class.getClassLoader();
+        URLClassLoader urlCL = (URLClassLoader) GadgetJettyDevServer.class.getClassLoader();
         TreeSet<URL> sortedURLs = new TreeSet<URL>(new Comparator<URL>() {
             @Override
             public int compare(URL o1, URL o2) {

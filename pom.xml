@@ -9,6 +9,7 @@
   <properties>
     <overlord-commons.version>1.0.6-SNAPSHOT</overlord-commons.version>
     <gadget.version>1.0.0-SNAPSHOT</gadget.version>
+    <rtgov.version>1.0.0-SNAPSHOT</rtgov.version>
     <shiro.version>1.1.0</shiro.version>
     <resteasy.version>2.3.5.Final</resteasy.version>
   </properties>
@@ -121,15 +122,15 @@
       <classifier>classes</classifier>
     </dependency>
     <dependency>
-      <groupId>org.overlord.gadgets.server</groupId>
+      <groupId>org.overlord.rtgov</groupId>
       <artifactId>gadgets</artifactId>
-      <version>${gadget.version}</version>
+      <version>${rtgov.version}</version>
       <type>war</type>
     </dependency>
     <dependency>
-      <groupId>org.overlord.gadgets.server</groupId>
+      <groupId>org.overlord.rtgov</groupId>
       <artifactId>gadgets</artifactId>
-      <version>${gadget.version}</version>
+      <version>${rtgov.version}</version>
       <classifier>classes</classifier>
     </dependency>
     <dependency>

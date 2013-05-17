@@ -55,6 +55,7 @@ import org.jboss.resteasy.plugins.guice.GuiceResteasyBootstrapServletContextList
 import org.jboss.resteasy.plugins.server.servlet.HttpServletDispatcher;
 import org.overlord.commons.dev.server.DevServer;
 import org.overlord.commons.dev.server.DevServerEnvironment;
+import org.overlord.commons.dev.server.MultiDefaultServlet;
 import org.overlord.commons.dev.server.discovery.JarModuleFromIDEDiscoveryStrategy;
 import org.overlord.commons.dev.server.discovery.JarModuleFromMavenDiscoveryStrategy;
 import org.overlord.commons.dev.server.discovery.WebAppModuleFromIDEDiscoveryStrategy;
@@ -68,15 +69,15 @@ import org.overlord.gadgets.web.server.StoreController;
  * Dev environment bootstrapper for rtgov/bootstrapper.
  * @author eric.wittmann@redhat.com
  */
-public class GadgetJettyDevServer extends DevServer {
+public class GadgetDevServer extends DevServer {
 
     /**
      * Main entry point.
      * @param args
      */
     public static void main(String [] args) throws Exception {
-        System.setProperty("discovery-strategy.debug", "true");
-        GadgetJettyDevServer devServer = new GadgetJettyDevServer(args);
+//        System.setProperty("discovery-strategy.debug", "true");
+        GadgetDevServer devServer = new GadgetDevServer(args);
         devServer.go();
     }
 
@@ -84,7 +85,7 @@ public class GadgetJettyDevServer extends DevServer {
      * Constructor.
      * @param args
      */
-    public GadgetJettyDevServer(String [] args) {
+    public GadgetDevServer(String [] args) {
         super(args);
     }
 
@@ -120,8 +121,8 @@ public class GadgetJettyDevServer extends DevServer {
                 new WebAppModuleFromIDEGAVStrategy("org.overlord.gadgets.server", "gadget-server", false),
                 new WebAppModuleFromMavenGAVStrategy("org.overlord.gadgets.server", "gadget-server"));
         environment.addModule("gadgets",
-                new WebAppModuleFromIDEGAVStrategy("org.overlord.gadgets.server", "gadgets", true),
-                new WebAppModuleFromMavenGAVStrategy("org.overlord.gadgets.server", "gadgets"));
+                new WebAppModuleFromIDEGAVStrategy("org.overlord.rtgov", "gadgets", true),
+                new WebAppModuleFromMavenGAVStrategy("org.overlord.rtgov", "gadgets"));
         environment.addModule("gadget-web",
                 new WebAppModuleFromIDEDiscoveryStrategy(StoreController.class),
                 new WebAppModuleFromMavenDiscoveryStrategy(StoreController.class));
@@ -140,7 +141,7 @@ public class GadgetJettyDevServer extends DevServer {
                 new File(environment.getModuleDir("gadget-server"), "WEB-INF/classes").toURI().toURL()
         };
         // Set up the classloader.
-        ClassLoader cl = new URLClassLoader(clURLs, GadgetJettyDevServer.class.getClassLoader());
+        ClassLoader cl = new URLClassLoader(clURLs, GadgetDevServer.class.getClassLoader());
         Thread.currentThread().setContextClassLoader(cl);
 
         /* *********
@@ -234,7 +235,10 @@ public class GadgetJettyDevServer extends DevServer {
         gadgetWeb.addEventListener(new GuiceResteasyBootstrapServletContextListener());
         gadgetWeb.addServlet(HttpServletDispatcher.class, "/rs/*");
         // Resources
-        resources = new ServletHolder(new DefaultServlet());
+        resources = new ServletHolder(new MultiDefaultServlet());
+        resources.setInitParameter("resourceBase", "/");
+        resources.setInitParameter("resourceBases", environment.getModuleDir("gadget-web").getCanonicalPath()
+                + "|" + environment.getModuleDir("overlord-commons-uiheader").getCanonicalPath());
         resources.setInitParameter("dirAllowed", "true");
         resources.setInitParameter("pathInfoOnly", "false");
         gadgetWeb.addServlet(resources, "/");

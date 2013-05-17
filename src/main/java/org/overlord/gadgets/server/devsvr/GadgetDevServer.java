@@ -15,15 +15,20 @@
  */
 package org.overlord.gadgets.server.devsvr;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.IOException;
+import java.io.StringReader;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.net.URLConnection;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.EnumSet;
 
 import javax.naming.InitialContext;
 import javax.servlet.DispatcherType;
+import javax.sql.DataSource;
 
 import org.apache.commons.dbcp.BasicDataSource;
 import org.apache.shindig.auth.AuthenticationServletFilter;
@@ -71,12 +76,14 @@ import org.overlord.gadgets.web.server.StoreController;
  */
 public class GadgetDevServer extends DevServer {
 
+    private DataSource ds = null;
+
     /**
      * Main entry point.
      * @param args
      */
     public static void main(String [] args) throws Exception {
-//        System.setProperty("discovery-strategy.debug", "true");
+        System.setProperty("discovery-strategy.debug", "true");
         GadgetDevServer devServer = new GadgetDevServer(args);
         devServer.go();
     }
@@ -98,7 +105,8 @@ public class GadgetDevServer extends DevServer {
         try {
             InitialContext ctx = new InitialContext();
             ctx.bind("java:jboss", new InitialContext());
-            ctx.bind("java:jboss/GadgetServer", createInMemoryDatasource());
+            ds = createInMemoryDatasource();
+            ctx.bind("java:jboss/GadgetServer", ds);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -124,6 +132,7 @@ public class GadgetDevServer extends DevServer {
                 new WebAppModuleFromIDEGAVStrategy("org.overlord.rtgov", "gadgets", true),
                 new WebAppModuleFromMavenGAVStrategy("org.overlord.rtgov", "gadgets"));
         environment.addModule("gadget-web",
+                new WebAppModuleFromIDEGAVStrategy("org.overlord.gadgets.server", "gadget-web", true),
                 new WebAppModuleFromIDEDiscoveryStrategy(StoreController.class),
                 new WebAppModuleFromMavenDiscoveryStrategy(StoreController.class));
         environment.addModule("overlord-commons-uiheader",
@@ -234,6 +243,9 @@ public class GadgetDevServer extends DevServer {
         gadgetWeb.setResourceBase(environment.getModuleDir("gadget-web").getCanonicalPath());
         gadgetWeb.addEventListener(new GuiceResteasyBootstrapServletContextListener());
         gadgetWeb.addServlet(HttpServletDispatcher.class, "/rs/*");
+        ServletHolder overlordHeaderJS = new ServletHolder(OverlordHeaderDataJS.class);
+        overlordHeaderJS.setInitParameter("app-id", "gadget-server");
+        gadgetWeb.addServlet(overlordHeaderJS, "/js/overlord-header-data.js");
         // Resources
         resources = new ServletHolder(new MultiDefaultServlet());
         resources.setInitParameter("resourceBase", "/");
@@ -251,10 +263,22 @@ public class GadgetDevServer extends DevServer {
     }
 
     /**
+     * @see org.overlord.commons.dev.server.DevServer#postStart(org.overlord.commons.dev.server.DevServerEnvironment)
+     */
+    @Override
+    protected void postStart(DevServerEnvironment environment) throws Exception {
+        String urlStr = String.format("http://localhost:%1$d/gadget-web/rs/stores/all/0/1", serverPort());
+        URL url = new URL(urlStr);
+        URLConnection conn = url.openConnection();
+        conn.getInputStream().close();
+        seedDB(ds);
+    }
+
+    /**
      * Creates an in-memory datasource.
      * @throws SQLException
      */
-    private static Object createInMemoryDatasource() throws SQLException {
+    private static DataSource createInMemoryDatasource() throws SQLException {
         System.setProperty("hibernate.dialect", "org.hibernate.dialect.H2Dialect");
         BasicDataSource ds = new BasicDataSource();
         ds.setDriverClassName(Driver.class.getName());
@@ -264,6 +288,31 @@ public class GadgetDevServer extends DevServer {
         Connection connection = ds.getConnection();
         connection.close();
         return ds;
+    }
+
+    /**
+     * @param ds
+     * @throws SQLException
+     * @throws IOException
+     */
+    private void seedDB(DataSource ds) throws SQLException, IOException {
+        Connection connection = ds.getConnection();
+
+        try {
+            String sql = DB_SEED_DATA;
+            BufferedReader reader = new BufferedReader(new StringReader(sql));
+            String line = null;
+            while ( (line = reader.readLine()) != null) {
+                if (line.trim().length() > 0) {
+                    System.out.println(" DB> " + line);
+                    connection.createStatement().execute(line);
+                }
+            }
+
+            connection.commit();
+        } finally {
+            connection.close();
+        }
     }
 
     private static final String GUICE_MODULES = "" +
@@ -307,5 +356,21 @@ public class GadgetDevServer extends DevServer {
             "    org.overlord.gadgets.web.server.GadgetServerModule,\r\n" +
             "    org.overlord.gadgets.server.CoreModule\r\n";
 
+    private static final String DB_SEED_DATA =
+            "INSERT INTO GS_GROUP(`GROUP_ID`,`GROUP_NAME`, `GROUP_DESC`) VALUES(1, 'system', 'reserved system group');\r\n" +
+            "INSERT INTO GS_GROUP(`GROUP_ID`,`GROUP_NAME`, `GROUP_DESC`) VALUES(2, 'users', 'all users');\r\n" +
+            "INSERT INTO GS_USER(`ID`, `NAME`, `DISPLAY_NAME`, `PASSWD`, `USER_ROLE`) VALUES(1, 'admin', 'Administrator', 'admin','ADMIN');\r\n" +
+            "INSERT INTO GS_USER(`ID`, `NAME`, `DISPLAY_NAME`, `PASSWD`, `USER_ROLE`) VALUES(2, 'eric', 'Eric', 'eric','USER');\r\n" +
+            "INSERT INTO GS_USER(`ID`, `NAME`, `DISPLAY_NAME`, `PASSWD`, `USER_ROLE`) VALUES(3, 'gary', 'Gary', 'gary','USER');\r\n" +
+            "INSERT INTO GS_USER_GROUP(`USER_ID`, `GROUP_ID`) VALUES(1, 1);\r\n" +
+            "INSERT INTO GS_USER_GROUP(`USER_ID`, `GROUP_ID`) VALUES(2, 2);\r\n" +
+            "INSERT INTO GS_USER_GROUP(`USER_ID`, `GROUP_ID`) VALUES(3, 2);\r\n" +
+            "\r\n" +
+            "\r\n" +
+            "INSERT INTO GS_GADGET(`GADGET_TITLE`,`GADGET_AUTHOR`,`GADGET_AUTHOR_EMAIL`,`GADGET_DESCRIPTION`,`GADGET_THUMBNAIL_URL`,`GADGET_URL`) VALUES('Date & Time','Google','admin@google.com','Add a clock to your page. Click edit to change it to the color of your choice','http://gadgets.adwebmaster.net/images/gadgets/datetimemulti/thumbnail_en.jpg','http://www.gstatic.com/ig/modules/datetime_v3/datetime_v3.xml');\r\n" +
+            "INSERT INTO GS_GADGET(`GADGET_TITLE`,`GADGET_AUTHOR`,`GADGET_AUTHOR_EMAIL`,`GADGET_DESCRIPTION`,`GADGET_THUMBNAIL_URL`,`GADGET_URL`) VALUES('Response Time','Jeff Yu','jeffyu@overlord.com','Response Time Gadget','http://localhost:8080/gadgets/rt-gadget/thumbnail.png','http://localhost:8080/gadgets/rt-gadget/gadget.xml');\r\n" +
+            "INSERT INTO GS_GADGET(`GADGET_TITLE`,`GADGET_AUTHOR`,`GADGET_AUTHOR_EMAIL`,`GADGET_DESCRIPTION`,`GADGET_THUMBNAIL_URL`,`GADGET_URL`) VALUES('Currency Converter','Google','info@tofollow.com','currency converter widget','http://www.gstatic.com/ig/modules/currency_converter/currency_converter_content/en_us-thm.cache.png','http://www.gstatic.com/ig/modules/currency_converter/currency_converter_v2.xml');\r\n" +
+            "INSERT INTO GS_GADGET(`GADGET_TITLE`,`GADGET_AUTHOR`,`GADGET_AUTHOR_EMAIL`,`GADGET_DESCRIPTION`,`GADGET_THUMBNAIL_URL`,`GADGET_URL`) VALUES('SLA Gadget','Jeff Yu','jeffyu@overlord.com','Service Level Violation Gadget','http://localhost:8080/gadgets/sla-gadget/thumbnail.png','http://localhost:8080/gadgets/sla-gadget/gadget.xml');\r\n" +
+            "INSERT INTO GS_GADGET(`GADGET_TITLE`,`GADGET_AUTHOR`,`GADGET_AUTHOR_EMAIL`,`GADGET_DESCRIPTION`,`GADGET_THUMBNAIL_URL`,`GADGET_URL`) VALUES('Economic Data - ALFRED Graph','Research Department','webmaster@research.stlouisfed.org','Vintage Economic Data from the Federal Reserve Bank of St. Louis','http://research.stlouisfed.org/gadgets/images/alfredgraphgadgetthumbnail.png','http://research.stlouisfed.org/gadgets/code/alfredgraph.xml');";
 
 }

@@ -7,16 +7,10 @@
   <version>1.0-SNAPSHOT</version>
 
   <properties>
+    <overlord-commons.version>1.0.6-SNAPSHOT</overlord-commons.version>
     <gadget.version>1.0.0-SNAPSHOT</gadget.version>
-    <overlord-commons.version>1.0.5</overlord-commons.version>
-    <s-ramp.version>0.1.1</s-ramp.version>
-    <org.jboss.resteasy.version>2.3.5.Final</org.jboss.resteasy.version>
-    <slf4j.log4j.version>1.5.11</slf4j.log4j.version>
-    <log4j.version>1.2.17</log4j.version>
-    <servlet-api.version>2.5</servlet-api.version>
-    <gwt.version>2.5.0</gwt.version>
-    <commons.io.version>2.4</commons.io.version>
     <shiro.version>1.1.0</shiro.version>
+    <resteasy.version>2.3.5.Final</resteasy.version>
   </properties>
 
   <repositories>
@@ -37,11 +31,19 @@
   </repositories>
 
   <dependencies>
+    <!-- Dev Server Dependencies -->
+    <dependency>
+      <groupId>org.overlord</groupId>
+      <artifactId>overlord-commons-dev</artifactId>
+      <version>${overlord-commons.version}</version>
+    </dependency>
     <dependency>
       <groupId>org.jboss.logging</groupId>
       <artifactId>jboss-logging</artifactId>
       <version>3.1.0.GA</version>
     </dependency>
+    
+    <!-- Required Third Party Libs -->
     <dependency>
       <groupId>com.google.javascript</groupId>
       <artifactId>closure-compiler</artifactId>
@@ -72,29 +74,27 @@
       <artifactId>h2</artifactId>
       <version>1.3.171</version>
     </dependency>
+    <dependency>
+      <groupId>org.apache.shiro</groupId>
+      <artifactId>shiro-web</artifactId>
+      <version>${shiro.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.jboss.resteasy</groupId>
+      <artifactId>resteasy-jaxrs</artifactId>
+      <version>${resteasy.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.jboss.resteasy</groupId>
+      <artifactId>resteasy-jackson-provider</artifactId>
+      <version>${resteasy.version}</version>
+    </dependency>
 
     <!-- Overlord Commons -->
     <dependency>
       <groupId>org.overlord</groupId>
       <artifactId>overlord-commons-uiheader</artifactId>
       <version>${overlord-commons.version}</version>
-    </dependency>
-
-    <!-- S-RAMP (archive utilities) -->
-    <dependency>
-      <groupId>org.overlord.sramp</groupId>
-      <artifactId>s-ramp-atom</artifactId>
-      <version>${s-ramp.version}</version>
-      <exclusions>
-        <exclusion>
-          <artifactId>slf4j-api</artifactId>
-          <groupId>org.slf4j</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>slf4j-log4j12</artifactId>
-          <groupId>org.slf4j</groupId>
-        </exclusion>
-      </exclusions>
     </dependency>
 
     <!-- Gadget -->
@@ -143,35 +143,6 @@
       <artifactId>gadget-server</artifactId>
       <version>${gadget.version}</version>
       <classifier>classes</classifier>
-    </dependency>
-
-    <!-- Shiro -->
-    <dependency>
-      <groupId>org.apache.shiro</groupId>
-      <artifactId>shiro-web</artifactId>
-      <version>${shiro.version}</version>
-    </dependency>
-
-    <!-- Jetty -->
-    <dependency>
-      <groupId>org.eclipse.jetty</groupId>
-      <artifactId>jetty-server</artifactId>
-      <version>9.0.2.v20130417</version>
-    </dependency>
-    <dependency>
-      <groupId>org.eclipse.jetty</groupId>
-      <artifactId>jetty-servlet</artifactId>
-      <version>9.0.2.v20130417</version>
-    </dependency>
-    <dependency>
-      <groupId>org.eclipse.jetty</groupId>
-      <artifactId>jetty-jsp</artifactId>
-      <version>9.0.2.v20130417</version>
-    </dependency>
-    <dependency>
-      <groupId>org.eclipse.jetty</groupId>
-      <artifactId>jetty-jndi</artifactId>
-      <version>9.0.2.v20130417</version>
     </dependency>
 
   </dependencies>

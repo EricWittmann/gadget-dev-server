@@ -45,7 +45,6 @@ import org.apache.shindig.protocol.JsonRpcServlet;
 import org.apache.shindig.social.core.oauth2.OAuth2Servlet;
 import org.apache.shindig.social.sample.oauth.SampleOAuthServlet;
 import org.apache.shiro.web.servlet.IniShiroFilter;
-import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.ContextHandlerCollection;
 import org.eclipse.jetty.servlet.DefaultServlet;
 import org.eclipse.jetty.servlet.FilterHolder;
@@ -54,27 +53,91 @@ import org.eclipse.jetty.servlet.ServletHolder;
 import org.h2.Driver;
 import org.jboss.resteasy.plugins.guice.GuiceResteasyBootstrapServletContextListener;
 import org.jboss.resteasy.plugins.server.servlet.HttpServletDispatcher;
+import org.overlord.commons.dev.server.DevServer;
+import org.overlord.commons.dev.server.DevServerEnvironment;
+import org.overlord.commons.dev.server.discovery.JarModuleFromIDEDiscoveryStrategy;
+import org.overlord.commons.dev.server.discovery.JarModuleFromMavenDiscoveryStrategy;
+import org.overlord.commons.dev.server.discovery.WebAppModuleFromIDEDiscoveryStrategy;
+import org.overlord.commons.dev.server.discovery.WebAppModuleFromIDEGAVStrategy;
+import org.overlord.commons.dev.server.discovery.WebAppModuleFromMavenDiscoveryStrategy;
+import org.overlord.commons.dev.server.discovery.WebAppModuleFromMavenGAVStrategy;
+import org.overlord.commons.ui.header.OverlordHeaderDataJS;
+import org.overlord.gadgets.web.server.StoreController;
 
 /**
  * Dev environment bootstrapper for rtgov/bootstrapper.
  * @author eric.wittmann@redhat.com
  */
-public class GadgetJettyDevServer {
+public class GadgetJettyDevServer extends DevServer {
 
     /**
      * Main entry point.
-     *
      * @param args
      */
-    public static void main(String[] args) throws Exception {
-        long startTime = System.currentTimeMillis();
-        System.out.println("**** Starting up the Gadget Server in jetty 9...");
+    public static void main(String [] args) throws Exception {
+        System.setProperty("discovery-strategy.debug", "true");
+        GadgetJettyDevServer devServer = new GadgetJettyDevServer(args);
+        devServer.go();
+    }
 
-        GadgetDevServerEnvironment environment = GadgetDevServerEnvironment.discover(args);
-        environment.createAppConfigs();
+    /**
+     * Constructor.
+     * @param args
+     */
+    public GadgetJettyDevServer(String [] args) {
+        super(args);
+    }
 
+    /**
+     * @see org.overlord.commons.dev.server.DevServer#preConfig()
+     */
+    @Override
+    protected void preConfig() {
+        // Add JNDI resources
+        try {
+            InitialContext ctx = new InitialContext();
+            ctx.bind("java:jboss", new InitialContext());
+            ctx.bind("java:jboss/GadgetServer", createInMemoryDatasource());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * @see org.overlord.commons.dev.server.DevServer#createDevEnvironment()
+     */
+    @Override
+    protected DevServerEnvironment createDevEnvironment() {
+        return new GadgetDevServerEnvironment(args);
+    }
+
+    /**
+     * @see org.overlord.commons.dev.server.DevServer#addModules(org.overlord.commons.dev.server.DevServerEnvironment)
+     */
+    @Override
+    protected void addModules(DevServerEnvironment environment) {
+        environment.addModule("gadget-server",
+                new WebAppModuleFromIDEGAVStrategy("org.overlord.gadgets.server", "gadget-server", false),
+                new WebAppModuleFromMavenGAVStrategy("org.overlord.gadgets.server", "gadget-server"));
+        environment.addModule("gadgets",
+                new WebAppModuleFromIDEGAVStrategy("org.overlord.gadgets.server", "gadgets", true),
+                new WebAppModuleFromMavenGAVStrategy("org.overlord.gadgets.server", "gadgets"));
+        environment.addModule("gadget-web",
+                new WebAppModuleFromIDEDiscoveryStrategy(StoreController.class),
+                new WebAppModuleFromMavenDiscoveryStrategy(StoreController.class));
+        environment.addModule("overlord-commons-uiheader",
+                new JarModuleFromIDEDiscoveryStrategy(OverlordHeaderDataJS.class, "src/main/resources/META-INF/resources"),
+                new JarModuleFromMavenDiscoveryStrategy(OverlordHeaderDataJS.class, "/META-INF/resources"));
+    }
+
+    /**
+     * @see org.overlord.commons.dev.server.DevServer#addModulesToJetty(org.overlord.commons.dev.server.DevServerEnvironment, org.eclipse.jetty.server.handler.ContextHandlerCollection)
+     */
+    @Override
+    protected void addModulesToJetty(DevServerEnvironment environment, ContextHandlerCollection handlers)
+            throws Exception {
         URL[] clURLs = new URL[] {
-                new File(environment.getGadgetServerWebAppDir(), "WEB-INF/classes").toURI().toURL()
+                new File(environment.getModuleDir("gadget-server"), "WEB-INF/classes").toURI().toURL()
         };
         // Set up the classloader.
         ClassLoader cl = new URLClassLoader(clURLs, GadgetJettyDevServer.class.getClassLoader());
@@ -85,7 +148,7 @@ public class GadgetJettyDevServer {
          * ********* */
         ServletContextHandler gadgets = new ServletContextHandler(ServletContextHandler.SESSIONS);
         gadgets.setContextPath("/gadgets");
-        gadgets.setResourceBase(environment.getGadgetsWebAppDir().getCanonicalPath());
+        gadgets.setResourceBase(environment.getModuleDir("gadgets").getCanonicalPath());
         // File resources
         ServletHolder resources = new ServletHolder(new DefaultServlet());
         resources.setInitParameter("dirAllowed", "true");
@@ -103,7 +166,7 @@ public class GadgetJettyDevServer {
         gadgetServer.setInitParameter("guice-modules", GUICE_MODULES);
         gadgetServer.setContextPath("/gadget-server");
         gadgetServer.setWelcomeFiles(new String[] { "samplecontainer/samplecontainer.html" });
-        gadgetServer.setResourceBase(environment.getGadgetServerWebAppDir().getCanonicalPath());
+        gadgetServer.setResourceBase(environment.getModuleDir("gadget-server").getCanonicalPath());
         gadgetServer.addEventListener(new GuiceServletContextListener());
         // HostFilter
         gadgetServer.addFilter(HostFilter.class, "/gadgets/ifr", EnumSet.of(DispatcherType.REQUEST));
@@ -167,7 +230,7 @@ public class GadgetJettyDevServer {
         gadgetWeb.setInitParameter("resteasy.servlet.mapping.prefix", "/rs");
         gadgetWeb.setContextPath("/gadget-web");
         gadgetWeb.setWelcomeFiles(new String[] { "Application.html" });
-        gadgetWeb.setResourceBase(environment.getGadgetWebWebAppDir().getCanonicalPath());
+        gadgetWeb.setResourceBase(environment.getModuleDir("gadget-web").getCanonicalPath());
         gadgetWeb.addEventListener(new GuiceResteasyBootstrapServletContextListener());
         gadgetWeb.addServlet(HttpServletDispatcher.class, "/rs/*");
         // Resources
@@ -177,24 +240,10 @@ public class GadgetJettyDevServer {
         gadgetWeb.addServlet(resources, "/");
 
 
-        // Collection of handlers.
-        ContextHandlerCollection handlers = new ContextHandlerCollection();
+        // Add the web contexts to jetty
         handlers.addHandler(gadgets);
         handlers.addHandler(gadgetServer);
         handlers.addHandler(gadgetWeb);
-
-        // Add JNDI resources
-        InitialContext ctx = new InitialContext();
-        ctx.bind("java:jboss", new InitialContext());
-        ctx.bind("java:jboss/GadgetServer", createInMemoryDatasource());
-
-        // Create the server.
-        Server server = new Server(8080);
-        server.setHandler(handlers);
-        server.start();
-        long endTime = System.currentTimeMillis();
-        System.out.println("******* Started up in " + (endTime - startTime) + "ms");
-        server.join();
     }
 
     /**

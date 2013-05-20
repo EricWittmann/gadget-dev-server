@@ -19,9 +19,9 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.StringReader;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.net.URLConnection;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.EnumSet;
@@ -31,6 +31,10 @@ import javax.servlet.DispatcherType;
 import javax.sql.DataSource;
 
 import org.apache.commons.dbcp.BasicDataSource;
+import org.apache.commons.httpclient.HttpClient;
+import org.apache.commons.httpclient.UsernamePasswordCredentials;
+import org.apache.commons.httpclient.auth.AuthScope;
+import org.apache.commons.httpclient.methods.GetMethod;
 import org.apache.shindig.auth.AuthenticationServletFilter;
 import org.apache.shindig.common.servlet.GuiceServletContextListener;
 import org.apache.shindig.common.servlet.HostFilter;
@@ -50,11 +54,18 @@ import org.apache.shindig.protocol.JsonRpcServlet;
 import org.apache.shindig.social.core.oauth2.OAuth2Servlet;
 import org.apache.shindig.social.sample.oauth.SampleOAuthServlet;
 import org.apache.shiro.web.servlet.IniShiroFilter;
+import org.eclipse.jetty.security.ConstraintMapping;
+import org.eclipse.jetty.security.ConstraintSecurityHandler;
+import org.eclipse.jetty.security.HashLoginService;
+import org.eclipse.jetty.security.SecurityHandler;
+import org.eclipse.jetty.security.authentication.BasicAuthenticator;
 import org.eclipse.jetty.server.handler.ContextHandlerCollection;
 import org.eclipse.jetty.servlet.DefaultServlet;
 import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
+import org.eclipse.jetty.util.security.Constraint;
+import org.eclipse.jetty.util.security.Credential;
 import org.h2.Driver;
 import org.jboss.resteasy.plugins.guice.GuiceResteasyBootstrapServletContextListener;
 import org.jboss.resteasy.plugins.server.servlet.HttpServletDispatcher;
@@ -235,7 +246,7 @@ public class GadgetDevServer extends DevServer {
         /* *********
          * gadget-web
          * ********* */
-        ServletContextHandler gadgetWeb = new ServletContextHandler(ServletContextHandler.SESSIONS);
+        ServletContextHandler gadgetWeb = new ServletContextHandler(ServletContextHandler.SESSIONS|ServletContextHandler.SECURITY);
         gadgetWeb.setInitParameter("resteasy.guice.modules", RE_GUICE_MODULES);
         gadgetWeb.setInitParameter("resteasy.servlet.mapping.prefix", "/rs");
         gadgetWeb.setContextPath("/gadget-web");
@@ -254,7 +265,7 @@ public class GadgetDevServer extends DevServer {
         resources.setInitParameter("dirAllowed", "true");
         resources.setInitParameter("pathInfoOnly", "false");
         gadgetWeb.addServlet(resources, "/");
-
+        gadgetWeb.setSecurityHandler(createSecurityHandler());
 
         // Add the web contexts to jetty
         handlers.addHandler(gadgets);
@@ -267,11 +278,65 @@ public class GadgetDevServer extends DevServer {
      */
     @Override
     protected void postStart(DevServerEnvironment environment) throws Exception {
-        String urlStr = String.format("http://localhost:%1$d/gadget-web/rs/stores/all/0/1", serverPort());
-        URL url = new URL(urlStr);
-        URLConnection conn = url.openConnection();
-        conn.getInputStream().close();
+        bootstrapGadgetDB();
         seedDB(ds);
+    }
+
+    /**
+     * @throws MalformedURLException
+     * @throws IOException
+     */
+    private void bootstrapGadgetDB() throws MalformedURLException, IOException {
+        String urlStr = String.format("http://localhost:%1$d/gadget-web/rs/stores/all/0/1", serverPort());
+
+        HttpClient client = new HttpClient();
+        client.getState().setCredentials(
+            new AuthScope("localhost", serverPort(), "overlordrealm"),
+            new UsernamePasswordCredentials("admin", "admin")
+        );
+
+        GetMethod get = new GetMethod(urlStr);
+        get.setDoAuthentication( true );
+        try {
+            int status = client.executeMethod( get );
+            if (status != 200) {
+                throw new RuntimeException("Error bootstrapping DB: " + status);
+            }
+        } finally {
+            get.releaseConnection();
+        }
+
+//        URL url = new URL(urlStr);
+//        URLConnection conn = url.openConnection();
+//        conn.getInputStream().close();
+    }
+
+    /**
+     * Creates a basic auth security handler.
+     */
+    private SecurityHandler createSecurityHandler() {
+        HashLoginService l = new HashLoginService();
+        for (String user : USERS) {
+            l.putUser(user, Credential.getCredential(user), new String[] {"user"});
+        }
+        l.setName("overlordrealm");
+
+        Constraint constraint = new Constraint();
+        constraint.setName(Constraint.__BASIC_AUTH);
+        constraint.setRoles(new String[]{"user"});
+        constraint.setAuthenticate(true);
+
+        ConstraintMapping cm = new ConstraintMapping();
+        cm.setConstraint(constraint);
+        cm.setPathSpec("/*");
+
+        ConstraintSecurityHandler csh = new ConstraintSecurityHandler();
+        csh.setAuthenticator(new BasicAuthenticator());
+        csh.setRealmName("overlordrealm");
+        csh.addConstraintMapping(cm);
+        csh.setLoginService(l);
+
+        return csh;
     }
 
     /**
@@ -372,5 +437,7 @@ public class GadgetDevServer extends DevServer {
             "INSERT INTO GS_GADGET(`GADGET_TITLE`,`GADGET_AUTHOR`,`GADGET_AUTHOR_EMAIL`,`GADGET_DESCRIPTION`,`GADGET_THUMBNAIL_URL`,`GADGET_URL`) VALUES('Currency Converter','Google','info@tofollow.com','currency converter widget','http://www.gstatic.com/ig/modules/currency_converter/currency_converter_content/en_us-thm.cache.png','http://www.gstatic.com/ig/modules/currency_converter/currency_converter_v2.xml');\r\n" +
             "INSERT INTO GS_GADGET(`GADGET_TITLE`,`GADGET_AUTHOR`,`GADGET_AUTHOR_EMAIL`,`GADGET_DESCRIPTION`,`GADGET_THUMBNAIL_URL`,`GADGET_URL`) VALUES('SLA Gadget','Jeff Yu','jeffyu@overlord.com','Service Level Violation Gadget','http://localhost:8080/gadgets/sla-gadget/thumbnail.png','http://localhost:8080/gadgets/sla-gadget/gadget.xml');\r\n" +
             "INSERT INTO GS_GADGET(`GADGET_TITLE`,`GADGET_AUTHOR`,`GADGET_AUTHOR_EMAIL`,`GADGET_DESCRIPTION`,`GADGET_THUMBNAIL_URL`,`GADGET_URL`) VALUES('Economic Data - ALFRED Graph','Research Department','webmaster@research.stlouisfed.org','Vintage Economic Data from the Federal Reserve Bank of St. Louis','http://research.stlouisfed.org/gadgets/images/alfredgraphgadgetthumbnail.png','http://research.stlouisfed.org/gadgets/code/alfredgraph.xml');";
+
+    private static final String [] USERS = { "admin", "eric", "gary" };
 
 }

@@ -112,6 +112,7 @@ public class GadgetDevServer extends DevServer {
      */
     @Override
     protected void preConfig() {
+        System.setProperty("hibernate.hbm2ddl.auto", "create-drop");
         // Add JNDI resources
         try {
             InitialContext ctx = new InitialContext();

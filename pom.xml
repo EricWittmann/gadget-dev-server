@@ -7,7 +7,7 @@
   <version>1.0-SNAPSHOT</version>
 
   <properties>
-    <overlord-commons.version>1.0.6-SNAPSHOT</overlord-commons.version>
+    <overlord-commons.version>1.0.6</overlord-commons.version>
     <gadget.version>1.0.0-SNAPSHOT</gadget.version>
     <rtgov.version>1.0.0-SNAPSHOT</rtgov.version>
     <shiro.version>1.1.0</shiro.version>

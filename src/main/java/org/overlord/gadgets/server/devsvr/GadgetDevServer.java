@@ -80,6 +80,7 @@ import org.overlord.commons.dev.server.discovery.WebAppModuleFromMavenDiscoveryS
 import org.overlord.commons.dev.server.discovery.WebAppModuleFromMavenGAVStrategy;
 import org.overlord.commons.ui.header.OverlordHeaderDataJS;
 import org.overlord.gadgets.web.server.StoreController;
+import org.overlord.gadgets.web.server.filters.JSONPFilter;
 
 /**
  * Dev environment bootstrapper for rtgov/bootstrapper.
@@ -94,7 +95,6 @@ public class GadgetDevServer extends DevServer {
      * @param args
      */
     public static void main(String [] args) throws Exception {
-        System.setProperty("discovery-strategy.debug", "true");
         GadgetDevServer devServer = new GadgetDevServer(args);
         devServer.go();
     }
@@ -253,6 +253,7 @@ public class GadgetDevServer extends DevServer {
         gadgetWeb.setWelcomeFiles(new String[] { "Application.html" });
         gadgetWeb.setResourceBase(environment.getModuleDir("gadget-web").getCanonicalPath());
         gadgetWeb.addEventListener(new GuiceResteasyBootstrapServletContextListener());
+        gadgetWeb.addFilter(JSONPFilter.class, "/rs/*", EnumSet.of(DispatcherType.REQUEST));
         gadgetWeb.addServlet(HttpServletDispatcher.class, "/rs/*");
         ServletHolder overlordHeaderJS = new ServletHolder(OverlordHeaderDataJS.class);
         overlordHeaderJS.setInitParameter("app-id", "gadget-server");
@@ -423,21 +424,12 @@ public class GadgetDevServer extends DevServer {
 
     private static final String DB_SEED_DATA =
             "INSERT INTO GS_GROUP(`GROUP_ID`,`GROUP_NAME`, `GROUP_DESC`) VALUES(1, 'system', 'reserved system group');\r\n" +
-            "INSERT INTO GS_GROUP(`GROUP_ID`,`GROUP_NAME`, `GROUP_DESC`) VALUES(2, 'users', 'all users');\r\n" +
-            "INSERT INTO GS_USER(`ID`, `NAME`, `DISPLAY_NAME`, `PASSWD`, `USER_ROLE`) VALUES(1, 'admin', 'Administrator', 'admin','ADMIN');\r\n" +
-            "INSERT INTO GS_USER(`ID`, `NAME`, `DISPLAY_NAME`, `PASSWD`, `USER_ROLE`) VALUES(2, 'eric', 'Eric', 'eric','USER');\r\n" +
-            "INSERT INTO GS_USER(`ID`, `NAME`, `DISPLAY_NAME`, `PASSWD`, `USER_ROLE`) VALUES(3, 'gary', 'Gary', 'gary','USER');\r\n" +
-            "INSERT INTO GS_USER_GROUP(`USER_ID`, `GROUP_ID`) VALUES(1, 1);\r\n" +
-            "INSERT INTO GS_USER_GROUP(`USER_ID`, `GROUP_ID`) VALUES(2, 2);\r\n" +
-            "INSERT INTO GS_USER_GROUP(`USER_ID`, `GROUP_ID`) VALUES(3, 2);\r\n" +
-            "\r\n" +
-            "\r\n" +
             "INSERT INTO GS_GADGET(`GADGET_TITLE`,`GADGET_AUTHOR`,`GADGET_AUTHOR_EMAIL`,`GADGET_DESCRIPTION`,`GADGET_THUMBNAIL_URL`,`GADGET_URL`) VALUES('Date & Time','Google','admin@google.com','Add a clock to your page. Click edit to change it to the color of your choice','http://gadgets.adwebmaster.net/images/gadgets/datetimemulti/thumbnail_en.jpg','http://www.gstatic.com/ig/modules/datetime_v3/datetime_v3.xml');\r\n" +
             "INSERT INTO GS_GADGET(`GADGET_TITLE`,`GADGET_AUTHOR`,`GADGET_AUTHOR_EMAIL`,`GADGET_DESCRIPTION`,`GADGET_THUMBNAIL_URL`,`GADGET_URL`) VALUES('Response Time','Jeff Yu','jeffyu@overlord.com','Response Time Gadget','http://localhost:8080/gadgets/rt-gadget/thumbnail.png','http://localhost:8080/gadgets/rt-gadget/gadget.xml');\r\n" +
             "INSERT INTO GS_GADGET(`GADGET_TITLE`,`GADGET_AUTHOR`,`GADGET_AUTHOR_EMAIL`,`GADGET_DESCRIPTION`,`GADGET_THUMBNAIL_URL`,`GADGET_URL`) VALUES('Currency Converter','Google','info@tofollow.com','currency converter widget','http://www.gstatic.com/ig/modules/currency_converter/currency_converter_content/en_us-thm.cache.png','http://www.gstatic.com/ig/modules/currency_converter/currency_converter_v2.xml');\r\n" +
             "INSERT INTO GS_GADGET(`GADGET_TITLE`,`GADGET_AUTHOR`,`GADGET_AUTHOR_EMAIL`,`GADGET_DESCRIPTION`,`GADGET_THUMBNAIL_URL`,`GADGET_URL`) VALUES('SLA Gadget','Jeff Yu','jeffyu@overlord.com','Service Level Violation Gadget','http://localhost:8080/gadgets/sla-gadget/thumbnail.png','http://localhost:8080/gadgets/sla-gadget/gadget.xml');\r\n" +
             "INSERT INTO GS_GADGET(`GADGET_TITLE`,`GADGET_AUTHOR`,`GADGET_AUTHOR_EMAIL`,`GADGET_DESCRIPTION`,`GADGET_THUMBNAIL_URL`,`GADGET_URL`) VALUES('Economic Data - ALFRED Graph','Research Department','webmaster@research.stlouisfed.org','Vintage Economic Data from the Federal Reserve Bank of St. Louis','http://research.stlouisfed.org/gadgets/images/alfredgraphgadgetthumbnail.png','http://research.stlouisfed.org/gadgets/code/alfredgraph.xml');";
 
-    private static final String [] USERS = { "admin", "eric", "gary" };
+    private static final String [] USERS = { "admin", "eric", "gary", "jeff" };
 
 }

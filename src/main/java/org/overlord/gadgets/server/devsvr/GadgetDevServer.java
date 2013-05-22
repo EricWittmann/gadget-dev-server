@@ -79,6 +79,7 @@ import org.overlord.commons.dev.server.discovery.WebAppModuleFromIDEGAVStrategy;
 import org.overlord.commons.dev.server.discovery.WebAppModuleFromMavenDiscoveryStrategy;
 import org.overlord.commons.dev.server.discovery.WebAppModuleFromMavenGAVStrategy;
 import org.overlord.commons.ui.header.OverlordHeaderDataJS;
+import org.overlord.gadgets.server.mock.OverlordRTGovMockServlet;
 import org.overlord.gadgets.web.server.StoreController;
 import org.overlord.gadgets.web.server.filters.JSONPFilter;
 
@@ -269,10 +270,22 @@ public class GadgetDevServer extends DevServer {
         gadgetWeb.addServlet(resources, "/");
         gadgetWeb.setSecurityHandler(createSecurityHandler());
 
+
+        /* *********
+         * rtgov mock
+         * ********* */
+        ServletContextHandler rtgov = new ServletContextHandler(ServletContextHandler.SESSIONS);
+        rtgov.setContextPath("/overlord-rtgov");
+        rtgov.setResourceBase(environment.getModuleDir("gadgets").getCanonicalPath());
+        rtgov.addServlet(OverlordRTGovMockServlet.class, "/");
+
+
+
         // Add the web contexts to jetty
         handlers.addHandler(gadgets);
         handlers.addHandler(gadgetServer);
         handlers.addHandler(gadgetWeb);
+        handlers.addHandler(rtgov);
     }
 
     /**
@@ -425,10 +438,10 @@ public class GadgetDevServer extends DevServer {
 
     private static final String DB_SEED_DATA =
             "INSERT INTO GS_GROUP(`GROUP_ID`,`GROUP_NAME`, `GROUP_DESC`) VALUES(1, 'system', 'reserved system group');\r\n" +
-            "INSERT INTO GS_GADGET(`GADGET_TITLE`,`GADGET_AUTHOR`,`GADGET_AUTHOR_EMAIL`,`GADGET_DESCRIPTION`,`GADGET_THUMBNAIL_URL`,`GADGET_URL`) VALUES('Date & Time','Google','admin@google.com','Add a clock to your page. Click edit to change it to the color of your choice','http://gadgets.adwebmaster.net/images/gadgets/datetimemulti/thumbnail_en.jpg','http://www.gstatic.com/ig/modules/datetime_v3/datetime_v3.xml');\r\n" +
             "INSERT INTO GS_GADGET(`GADGET_TITLE`,`GADGET_AUTHOR`,`GADGET_AUTHOR_EMAIL`,`GADGET_DESCRIPTION`,`GADGET_THUMBNAIL_URL`,`GADGET_URL`) VALUES('Response Time','Jeff Yu','jeffyu@overlord.com','Response Time Gadget','http://localhost:8080/gadgets/rt-gadget/thumbnail.png','http://localhost:8080/gadgets/rt-gadget/gadget.xml');\r\n" +
-            "INSERT INTO GS_GADGET(`GADGET_TITLE`,`GADGET_AUTHOR`,`GADGET_AUTHOR_EMAIL`,`GADGET_DESCRIPTION`,`GADGET_THUMBNAIL_URL`,`GADGET_URL`) VALUES('Currency Converter','Google','info@tofollow.com','currency converter widget','http://www.gstatic.com/ig/modules/currency_converter/currency_converter_content/en_us-thm.cache.png','http://www.gstatic.com/ig/modules/currency_converter/currency_converter_v2.xml');\r\n" +
             "INSERT INTO GS_GADGET(`GADGET_TITLE`,`GADGET_AUTHOR`,`GADGET_AUTHOR_EMAIL`,`GADGET_DESCRIPTION`,`GADGET_THUMBNAIL_URL`,`GADGET_URL`) VALUES('SLA Gadget','Jeff Yu','jeffyu@overlord.com','Service Level Violation Gadget','http://localhost:8080/gadgets/sla-gadget/thumbnail.png','http://localhost:8080/gadgets/sla-gadget/gadget.xml');\r\n" +
+            "INSERT INTO GS_GADGET(`GADGET_TITLE`,`GADGET_AUTHOR`,`GADGET_AUTHOR_EMAIL`,`GADGET_DESCRIPTION`,`GADGET_THUMBNAIL_URL`,`GADGET_URL`) VALUES('Date & Time','Google','admin@google.com','Add a clock to your page. Click edit to change it to the color of your choice','http://gadgets.adwebmaster.net/images/gadgets/datetimemulti/thumbnail_en.jpg','http://www.gstatic.com/ig/modules/datetime_v3/datetime_v3.xml');\r\n" +
+            "INSERT INTO GS_GADGET(`GADGET_TITLE`,`GADGET_AUTHOR`,`GADGET_AUTHOR_EMAIL`,`GADGET_DESCRIPTION`,`GADGET_THUMBNAIL_URL`,`GADGET_URL`) VALUES('Currency Converter','Google','info@tofollow.com','currency converter widget','http://www.gstatic.com/ig/modules/currency_converter/currency_converter_content/en_us-thm.cache.png','http://www.gstatic.com/ig/modules/currency_converter/currency_converter_v2.xml');\r\n" +
             "INSERT INTO GS_GADGET(`GADGET_TITLE`,`GADGET_AUTHOR`,`GADGET_AUTHOR_EMAIL`,`GADGET_DESCRIPTION`,`GADGET_THUMBNAIL_URL`,`GADGET_URL`) VALUES('Economic Data - ALFRED Graph','Research Department','webmaster@research.stlouisfed.org','Vintage Economic Data from the Federal Reserve Bank of St. Louis','http://research.stlouisfed.org/gadgets/images/alfredgraphgadgetthumbnail.png','http://research.stlouisfed.org/gadgets/code/alfredgraph.xml');";
 
     private static final String [] USERS = { "admin", "eric", "gary", "jeff" };

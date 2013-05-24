@@ -67,7 +67,6 @@ import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.util.security.Constraint;
 import org.eclipse.jetty.util.security.Credential;
 import org.h2.Driver;
-import org.jboss.resteasy.plugins.guice.GuiceResteasyBootstrapServletContextListener;
 import org.jboss.resteasy.plugins.server.servlet.HttpServletDispatcher;
 import org.overlord.commons.dev.server.DevServer;
 import org.overlord.commons.dev.server.DevServerEnvironment;
@@ -79,9 +78,13 @@ import org.overlord.commons.dev.server.discovery.WebAppModuleFromIDEGAVStrategy;
 import org.overlord.commons.dev.server.discovery.WebAppModuleFromMavenDiscoveryStrategy;
 import org.overlord.commons.dev.server.discovery.WebAppModuleFromMavenGAVStrategy;
 import org.overlord.commons.ui.header.OverlordHeaderDataJS;
+import org.overlord.gadgets.server.Bootstrap;
 import org.overlord.gadgets.server.mock.OverlordRTGovMockServlet;
 import org.overlord.gadgets.web.server.StoreController;
 import org.overlord.gadgets.web.server.filters.JSONPFilter;
+import org.overlord.gadgets.web.server.http.auth.AuthenticationConstants;
+import org.overlord.gadgets.web.server.http.auth.BasicAuthenticationProvider;
+import org.overlord.gadgets.web.server.listeners.ShindigResteasyBootstrapServletContextListener;
 
 /**
  * Dev environment bootstrapper for rtgov/bootstrapper.
@@ -113,7 +116,11 @@ public class GadgetDevServer extends DevServer {
      */
     @Override
     protected void preConfig() {
-        System.setProperty("hibernate.hbm2ddl.auto", "create-drop");
+        System.setProperty(Bootstrap.HIBERNATE_HBM2DDL_AUTO, "create-drop");
+        System.setProperty(AuthenticationConstants.CONFIG_AUTHENTICATION_PROVIDER, BasicAuthenticationProvider.class.getName());
+        System.setProperty(AuthenticationConstants.CONFIG_BASIC_AUTH_USER, "rest-client");
+        System.setProperty(AuthenticationConstants.CONFIG_BASIC_AUTH_PASS, "rest-client");
+        System.setProperty(AuthenticationConstants.CONFIG_AUTHENTICATION_ENDPOINTS, "/overlord-rtgov/");
         // Add JNDI resources
         try {
             InitialContext ctx = new InitialContext();
@@ -180,96 +187,82 @@ public class GadgetDevServer extends DevServer {
 
 
         /* *********
-         * gadget-server
+         * gadget-web
          * ********* */
         System.setProperty("shindig.host", "");
         System.setProperty("shindig.port", "");
         System.setProperty("aKey", "/shindig/gadgets/proxy?container=default&url=");
-        ServletContextHandler gadgetServer = new ServletContextHandler(ServletContextHandler.SESSIONS);
-        gadgetServer.setInitParameter("guice-modules", GUICE_MODULES);
-        gadgetServer.setContextPath("/gadget-server");
-        gadgetServer.setWelcomeFiles(new String[] { "samplecontainer/samplecontainer.html" });
-        gadgetServer.setResourceBase(environment.getModuleDir("gadget-server").getCanonicalPath());
-        gadgetServer.addEventListener(new GuiceServletContextListener());
-        // HostFilter
-        gadgetServer.addFilter(HostFilter.class, "/gadgets/ifr", EnumSet.of(DispatcherType.REQUEST));
-        gadgetServer.addFilter(HostFilter.class, "/gadgets/js/*", EnumSet.of(DispatcherType.REQUEST));
-        gadgetServer.addFilter(HostFilter.class, "/gadgets/proxy/*", EnumSet.of(DispatcherType.REQUEST));
-        gadgetServer.addFilter(HostFilter.class, "/gadgets/concat", EnumSet.of(DispatcherType.REQUEST));
-        gadgetServer.addFilter(HostFilter.class, "/gadgets/makeRequest", EnumSet.of(DispatcherType.REQUEST));
-        gadgetServer.addFilter(HostFilter.class, "/rpc/*", EnumSet.of(DispatcherType.REQUEST));
-        gadgetServer.addFilter(HostFilter.class, "/rest/*", EnumSet.of(DispatcherType.REQUEST));
-        // ShiroFilter
-        FilterHolder shiroFilter = new FilterHolder(IniShiroFilter.class);
-        shiroFilter.setInitParameter("config", SHIRO_CONFIG);
-        gadgetServer.addFilter(shiroFilter, "/oauth/authorize", EnumSet.of(DispatcherType.REQUEST));
-        gadgetServer.addFilter(shiroFilter, "/oauth2/authorize", EnumSet.of(DispatcherType.REQUEST));
-        gadgetServer.addFilter(shiroFilter, "*.jsp", EnumSet.of(DispatcherType.REQUEST));
-        // AuthFilter
-        gadgetServer.addFilter(AuthenticationServletFilter.class, "/gadgets/ifr", EnumSet.of(DispatcherType.REQUEST));
-        gadgetServer.addFilter(AuthenticationServletFilter.class, "/gadgets/js/*", EnumSet.of(DispatcherType.REQUEST));
-        gadgetServer.addFilter(AuthenticationServletFilter.class, "/gadgets/proxy/*", EnumSet.of(DispatcherType.REQUEST));
-        gadgetServer.addFilter(AuthenticationServletFilter.class, "/gadgets/concat", EnumSet.of(DispatcherType.REQUEST));
-        gadgetServer.addFilter(AuthenticationServletFilter.class, "/gadgets/makeRequest", EnumSet.of(DispatcherType.REQUEST));
-        gadgetServer.addFilter(AuthenticationServletFilter.class, "/rpc/*", EnumSet.of(DispatcherType.REQUEST));
-        gadgetServer.addFilter(AuthenticationServletFilter.class, "/rest/*", EnumSet.of(DispatcherType.REQUEST));
-        // EtagFilter
-        gadgetServer.addFilter(ETagFilter.class, "*", EnumSet.of(DispatcherType.REQUEST));
-        // Servlets
-        gadgetServer.addServlet(GadgetRenderingServlet.class, "/gadgets/ifr");
-        gadgetServer.addServlet(HtmlAccelServlet.class, "/gadgets/accel");
-        gadgetServer.addServlet(ProxyServlet.class, "/gadgets/proxy/*");
-        gadgetServer.addServlet(MakeRequestServlet.class, "/gadgets/makeRequest");
-        gadgetServer.addServlet(ConcatProxyServlet.class, "/gadgets/concat");
-        gadgetServer.addServlet(OAuthCallbackServlet.class, "/gadgets/oauthcallback");
-        gadgetServer.addServlet(OAuth2CallbackServlet.class, "/gadgets/oauth2callback");
-        gadgetServer.addServlet(RpcServlet.class, "/gadgets/metadata");
-        gadgetServer.addServlet(JsServlet.class, "/gadgets/js/*");
-        ServletHolder servletHolder = new ServletHolder(DataServiceServlet.class);
-        servletHolder.setInitParameter("handlers", "org.apache.shindig.handlers");
-        gadgetServer.addServlet(servletHolder, "/rest/*");
-        gadgetServer.addServlet(servletHolder, "/gadgets/api/rest/*");
-        gadgetServer.addServlet(servletHolder, "/social/rest/*");
-        servletHolder = new ServletHolder(JsonRpcServlet.class);
-        servletHolder.setInitParameter("handlers", "org.apache.shindig.handlers");
-        gadgetServer.addServlet(servletHolder, "/rpc/*");
-        gadgetServer.addServlet(servletHolder, "/gadgets/api/rpc/*");
-        gadgetServer.addServlet(servletHolder, "/social/rpc/*");
-        gadgetServer.addServlet(SampleOAuthServlet.class, "/oauth/*");
-        gadgetServer.addServlet(OAuth2Servlet.class, "/oauth2/*");
-        gadgetServer.addServlet(RpcSwfServlet.class, "/xpc*");
-        // Resources
-        resources = new ServletHolder(new DefaultServlet());
-        resources.setInitParameter("dirAllowed", "true");
-        resources.setInitParameter("pathInfoOnly", "false");
-        gadgetServer.addServlet(resources, "/");
-
-
-        /* *********
-         * gadget-web
-         * ********* */
-        ServletContextHandler gadgetWeb = new ServletContextHandler(ServletContextHandler.SESSIONS|ServletContextHandler.SECURITY);
-        gadgetWeb.setInitParameter("resteasy.guice.modules", RE_GUICE_MODULES);
+        ServletContextHandler gadgetWeb = new ServletContextHandler(ServletContextHandler.SESSIONS);
+        gadgetWeb.setInitParameter("guice-modules", GUICE_MODULES);
         gadgetWeb.setInitParameter("resteasy.servlet.mapping.prefix", "/rs");
         gadgetWeb.setContextPath("/gadget-web");
         gadgetWeb.setWelcomeFiles(new String[] { "Application.html" });
-        gadgetWeb.setResourceBase(environment.getModuleDir("gadget-web").getCanonicalPath());
-        gadgetWeb.addEventListener(new GuiceResteasyBootstrapServletContextListener());
+//        gadgetServer.setResourceBase(environment.getModuleDir("gadget-server").getCanonicalPath());
+        gadgetWeb.addEventListener(new GuiceServletContextListener());
+        gadgetWeb.addEventListener(new ShindigResteasyBootstrapServletContextListener());
+        // JSONP filter
         gadgetWeb.addFilter(JSONPFilter.class, "/rs/*", EnumSet.of(DispatcherType.REQUEST));
+        // HostFilter
+        gadgetWeb.addFilter(HostFilter.class, "/gadgets/ifr", EnumSet.of(DispatcherType.REQUEST));
+        gadgetWeb.addFilter(HostFilter.class, "/gadgets/js/*", EnumSet.of(DispatcherType.REQUEST));
+        gadgetWeb.addFilter(HostFilter.class, "/gadgets/proxy/*", EnumSet.of(DispatcherType.REQUEST));
+        gadgetWeb.addFilter(HostFilter.class, "/gadgets/concat", EnumSet.of(DispatcherType.REQUEST));
+        gadgetWeb.addFilter(HostFilter.class, "/gadgets/makeRequest", EnumSet.of(DispatcherType.REQUEST));
+        gadgetWeb.addFilter(HostFilter.class, "/rpc/*", EnumSet.of(DispatcherType.REQUEST));
+        gadgetWeb.addFilter(HostFilter.class, "/rest/*", EnumSet.of(DispatcherType.REQUEST));
+        // ShiroFilter
+        FilterHolder shiroFilter = new FilterHolder(IniShiroFilter.class);
+        shiroFilter.setInitParameter("config", SHIRO_CONFIG);
+        gadgetWeb.addFilter(shiroFilter, "/oauth/authorize", EnumSet.of(DispatcherType.REQUEST));
+        gadgetWeb.addFilter(shiroFilter, "/oauth2/authorize", EnumSet.of(DispatcherType.REQUEST));
+        gadgetWeb.addFilter(shiroFilter, "*.jsp", EnumSet.of(DispatcherType.REQUEST));
+        // AuthFilter
+        gadgetWeb.addFilter(AuthenticationServletFilter.class, "/gadgets/ifr", EnumSet.of(DispatcherType.REQUEST));
+        gadgetWeb.addFilter(AuthenticationServletFilter.class, "/gadgets/js/*", EnumSet.of(DispatcherType.REQUEST));
+        gadgetWeb.addFilter(AuthenticationServletFilter.class, "/gadgets/proxy/*", EnumSet.of(DispatcherType.REQUEST));
+        gadgetWeb.addFilter(AuthenticationServletFilter.class, "/gadgets/concat", EnumSet.of(DispatcherType.REQUEST));
+        gadgetWeb.addFilter(AuthenticationServletFilter.class, "/gadgets/makeRequest", EnumSet.of(DispatcherType.REQUEST));
+        gadgetWeb.addFilter(AuthenticationServletFilter.class, "/rpc/*", EnumSet.of(DispatcherType.REQUEST));
+        gadgetWeb.addFilter(AuthenticationServletFilter.class, "/rest/*", EnumSet.of(DispatcherType.REQUEST));
+        // EtagFilter
+        gadgetWeb.addFilter(ETagFilter.class, "*", EnumSet.of(DispatcherType.REQUEST));
+        // Servlets
+        gadgetWeb.addServlet(GadgetRenderingServlet.class, "/gadgets/ifr");
+        gadgetWeb.addServlet(HtmlAccelServlet.class, "/gadgets/accel");
+        gadgetWeb.addServlet(ProxyServlet.class, "/gadgets/proxy/*");
+        gadgetWeb.addServlet(MakeRequestServlet.class, "/gadgets/makeRequest");
+        gadgetWeb.addServlet(ConcatProxyServlet.class, "/gadgets/concat");
+        gadgetWeb.addServlet(OAuthCallbackServlet.class, "/gadgets/oauthcallback");
+        gadgetWeb.addServlet(OAuth2CallbackServlet.class, "/gadgets/oauth2callback");
+        gadgetWeb.addServlet(RpcServlet.class, "/gadgets/metadata");
+        gadgetWeb.addServlet(JsServlet.class, "/gadgets/js/*");
+        ServletHolder servletHolder = new ServletHolder(DataServiceServlet.class);
+        servletHolder.setInitParameter("handlers", "org.apache.shindig.handlers");
+        gadgetWeb.addServlet(servletHolder, "/rest/*");
+        gadgetWeb.addServlet(servletHolder, "/gadgets/api/rest/*");
+        gadgetWeb.addServlet(servletHolder, "/social/rest/*");
+        servletHolder = new ServletHolder(JsonRpcServlet.class);
+        servletHolder.setInitParameter("handlers", "org.apache.shindig.handlers");
+        gadgetWeb.addServlet(servletHolder, "/rpc/*");
+        gadgetWeb.addServlet(servletHolder, "/gadgets/api/rpc/*");
+        gadgetWeb.addServlet(servletHolder, "/social/rpc/*");
+        gadgetWeb.addServlet(SampleOAuthServlet.class, "/oauth/*");
+        gadgetWeb.addServlet(OAuth2Servlet.class, "/oauth2/*");
+        gadgetWeb.addServlet(RpcSwfServlet.class, "/xpc*");
         gadgetWeb.addServlet(HttpServletDispatcher.class, "/rs/*");
         ServletHolder overlordHeaderJS = new ServletHolder(OverlordHeaderDataJS.class);
         overlordHeaderJS.setInitParameter("app-id", "gadget-server");
         gadgetWeb.addServlet(overlordHeaderJS, "/js/overlord-header-data.js");
-        // Resources
+        // File resources
         resources = new ServletHolder(new MultiDefaultServlet());
         resources.setInitParameter("resourceBase", "/");
         resources.setInitParameter("resourceBases", environment.getModuleDir("gadget-web").getCanonicalPath()
+                + "|" + environment.getModuleDir("gadget-server").getCanonicalPath()
                 + "|" + environment.getModuleDir("overlord-commons-uiheader").getCanonicalPath());
         resources.setInitParameter("dirAllowed", "true");
         resources.setInitParameter("pathInfoOnly", "false");
         gadgetWeb.addServlet(resources, "/");
         gadgetWeb.setSecurityHandler(createSecurityHandler());
-
 
         /* *********
          * rtgov mock
@@ -278,12 +271,11 @@ public class GadgetDevServer extends DevServer {
         rtgov.setContextPath("/overlord-rtgov");
         rtgov.setResourceBase(environment.getModuleDir("gadgets").getCanonicalPath());
         rtgov.addServlet(OverlordRTGovMockServlet.class, "/");
-
+        rtgov.setSecurityHandler(createRtGovSecurityHandler());
 
 
         // Add the web contexts to jetty
         handlers.addHandler(gadgets);
-        handlers.addHandler(gadgetServer);
         handlers.addHandler(gadgetWeb);
         handlers.addHandler(rtgov);
     }
@@ -320,10 +312,6 @@ public class GadgetDevServer extends DevServer {
         } finally {
             get.releaseConnection();
         }
-
-//        URL url = new URL(urlStr);
-//        URLConnection conn = url.openConnection();
-//        conn.getInputStream().close();
     }
 
     /**
@@ -348,6 +336,34 @@ public class GadgetDevServer extends DevServer {
         ConstraintSecurityHandler csh = new ConstraintSecurityHandler();
         csh.setAuthenticator(new BasicAuthenticator());
         csh.setRealmName("overlordrealm");
+        csh.addConstraintMapping(cm);
+        csh.setLoginService(l);
+
+        return csh;
+    }
+
+    /**
+     * Creates a basic auth security handler for the rtgov mock rest endpoints.
+     */
+    private SecurityHandler createRtGovSecurityHandler() {
+        HashLoginService l = new HashLoginService();
+        for (String user : RTGOV_USERS) {
+            l.putUser(user, Credential.getCredential(user), new String[] {"client"});
+        }
+        l.setName("rtgovrealm");
+
+        Constraint constraint = new Constraint();
+        constraint.setName(Constraint.__BASIC_AUTH);
+        constraint.setRoles(new String[]{"client"});
+        constraint.setAuthenticate(true);
+
+        ConstraintMapping cm = new ConstraintMapping();
+        cm.setConstraint(constraint);
+        cm.setPathSpec("/*");
+
+        ConstraintSecurityHandler csh = new ConstraintSecurityHandler();
+        csh.setAuthenticator(new BasicAuthenticator());
+        csh.setRealmName("rtgovrealm");
         csh.addConstraintMapping(cm);
         csh.setLoginService(l);
 
@@ -396,6 +412,9 @@ public class GadgetDevServer extends DevServer {
     }
 
     private static final String GUICE_MODULES = "" +
+            "    org.overlord.gadgets.web.server.GadgetServerModule:\r\n" +
+            "    org.overlord.gadgets.server.CoreModule:\r\n" +
+            "    org.overlord.gadgets.web.server.http.auth.AuthenticationModule:\r\n" +
             "            org.apache.shindig.common.PropertiesModule:\r\n" +
             "            org.apache.shindig.gadgets.DefaultGuiceModule:\r\n" +
             "            org.apache.shindig.social.core.config.SocialApiGuiceModule:\r\n" +
@@ -432,18 +451,13 @@ public class GadgetDevServer extends DevServer {
             "                /oauth2/authorize/** = authc\r\n" +
             "";
 
-    private static final String RE_GUICE_MODULES = "" +
-            "    org.overlord.gadgets.web.server.GadgetServerModule,\r\n" +
-            "    org.overlord.gadgets.server.CoreModule\r\n";
-
     private static final String DB_SEED_DATA =
             "INSERT INTO GS_GROUP(`GROUP_ID`,`GROUP_NAME`, `GROUP_DESC`) VALUES(1, 'system', 'reserved system group');\r\n" +
             "INSERT INTO GS_GADGET(`GADGET_TITLE`,`GADGET_AUTHOR`,`GADGET_AUTHOR_EMAIL`,`GADGET_DESCRIPTION`,`GADGET_THUMBNAIL_URL`,`GADGET_URL`) VALUES('Response Time','Jeff Yu','jeffyu@overlord.com','Response Time Gadget','http://localhost:8080/gadgets/rt-gadget/thumbnail.png','http://localhost:8080/gadgets/rt-gadget/gadget.xml');\r\n" +
-            "INSERT INTO GS_GADGET(`GADGET_TITLE`,`GADGET_AUTHOR`,`GADGET_AUTHOR_EMAIL`,`GADGET_DESCRIPTION`,`GADGET_THUMBNAIL_URL`,`GADGET_URL`) VALUES('SLA Gadget','Jeff Yu','jeffyu@overlord.com','Service Level Violation Gadget','http://localhost:8080/gadgets/sla-gadget/thumbnail.png','http://localhost:8080/gadgets/sla-gadget/gadget.xml');\r\n" +
             "INSERT INTO GS_GADGET(`GADGET_TITLE`,`GADGET_AUTHOR`,`GADGET_AUTHOR_EMAIL`,`GADGET_DESCRIPTION`,`GADGET_THUMBNAIL_URL`,`GADGET_URL`) VALUES('Date & Time','Google','admin@google.com','Add a clock to your page. Click edit to change it to the color of your choice','http://gadgets.adwebmaster.net/images/gadgets/datetimemulti/thumbnail_en.jpg','http://www.gstatic.com/ig/modules/datetime_v3/datetime_v3.xml');\r\n" +
             "INSERT INTO GS_GADGET(`GADGET_TITLE`,`GADGET_AUTHOR`,`GADGET_AUTHOR_EMAIL`,`GADGET_DESCRIPTION`,`GADGET_THUMBNAIL_URL`,`GADGET_URL`) VALUES('Currency Converter','Google','info@tofollow.com','currency converter widget','http://www.gstatic.com/ig/modules/currency_converter/currency_converter_content/en_us-thm.cache.png','http://www.gstatic.com/ig/modules/currency_converter/currency_converter_v2.xml');\r\n" +
             "INSERT INTO GS_GADGET(`GADGET_TITLE`,`GADGET_AUTHOR`,`GADGET_AUTHOR_EMAIL`,`GADGET_DESCRIPTION`,`GADGET_THUMBNAIL_URL`,`GADGET_URL`) VALUES('Economic Data - ALFRED Graph','Research Department','webmaster@research.stlouisfed.org','Vintage Economic Data from the Federal Reserve Bank of St. Louis','http://research.stlouisfed.org/gadgets/images/alfredgraphgadgetthumbnail.png','http://research.stlouisfed.org/gadgets/code/alfredgraph.xml');";
 
     private static final String [] USERS = { "admin", "eric", "gary", "jeff" };
-
+    private static final String [] RTGOV_USERS = { "rest-client" };
 }

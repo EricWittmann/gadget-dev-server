@@ -57,19 +57,6 @@ public class OverlordRTGovMockServlet extends HttpServlet {
     }
 
     /**
-     * @param resp
-     * @param resourceName
-     * @throws IOException
-     */
-    private void send(HttpServletResponse resp, String resourceName) throws IOException {
-        InputStream is = getClass().getResourceAsStream(resourceName);
-        OutputStream os = resp.getOutputStream();
-        IOUtils.copy(is, os);
-        os.flush();
-        IOUtils.closeQuietly(is);
-    }
-
-    /**
      * @see javax.servlet.http.HttpServlet#doPost(javax.servlet.http.HttpServletRequest, javax.servlet.http.HttpServletResponse)
      */
     @Override
@@ -83,6 +70,19 @@ public class OverlordRTGovMockServlet extends HttpServlet {
         } else {
             super.doPost(req, resp);
         }
+    }
+
+    /**
+     * @param resp
+     * @param resourceName
+     * @throws IOException
+     */
+    private void send(HttpServletResponse resp, String resourceName) throws IOException {
+        InputStream is = getClass().getResourceAsStream(resourceName);
+        OutputStream os = resp.getOutputStream();
+        IOUtils.copy(is, os);
+        os.flush();
+        IOUtils.closeQuietly(is);
     }
 
 }

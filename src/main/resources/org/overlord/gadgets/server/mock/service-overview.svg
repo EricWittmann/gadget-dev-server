@@ -1,0 +1,312 @@
+<?xml version="1.0" encoding="UTF-8"?><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" contentScriptType="text/ecmascript" contentStyleType="text/css" onload="Init(evt)" preserveAspectRatio="xMidYMid meet" version="1.0" zoomAndPan="magnify">
+   <title>Service Dependency Overview</title>
+
+   <desc>
+      Service Graph representing the usage and invocation links between services.
+   </desc>
+
+   <script type="text/ecmascript"><![CDATA[
+      var SVGDocument = null;
+      var SVGRoot = null;
+      var SVGViewBox = null;
+      var svgns = 'http://www.w3.org/2000/svg';
+      var xlinkns = 'http://www.w3.org/1999/xlink';
+      var toolTip = null;
+      var TrueCoords = null;
+      var tipBox = null;
+      var tipText = null;
+      var tipTitle = null;
+      var tipDesc = null;
+      var tipCount = null;
+      var tipAvg = null;
+      var tipMax = null;
+      var tipMin = null;
+      var tipCritical = null;
+      var tipHigh = null;
+      var tipMedium = null;
+      var tipLow = null;
+
+      var lastElement = null;
+      var titleText = '';
+      var titleDesc = '';
+
+
+      function Init(evt)
+      {
+         SVGDocument = evt.target.ownerDocument;
+         SVGRoot = SVGDocument.documentElement;
+         TrueCoords = SVGRoot.createSVGPoint();
+
+         toolTip = SVGDocument.getElementById('ToolTip');
+         tipBox = SVGDocument.getElementById('tipbox');
+         tipText = SVGDocument.getElementById('tipText');
+         tipTitle = SVGDocument.getElementById('tipTitle');
+         tipDesc = SVGDocument.getElementById('tipDesc');
+         tipCount = SVGDocument.getElementById('tipCount');
+         tipAvg = SVGDocument.getElementById('tipAvg');
+         tipMax = SVGDocument.getElementById('tipMax');
+         tipMin = SVGDocument.getElementById('tipMin');
+         tipCritical = SVGDocument.getElementById('tipCritical');
+         tipHigh = SVGDocument.getElementById('tipHigh');
+         tipMedium = SVGDocument.getElementById('tipMedium');
+         tipLow = SVGDocument.getElementById('tipLow');
+         //window.status = (TrueCoords);
+
+         //create event for object
+         SVGRoot.addEventListener('mousemove', ShowTooltip, false);
+         SVGRoot.addEventListener('mouseout', HideTooltip, false);
+      };
+
+
+      function GetTrueCoords(evt)
+      {
+         // find the current zoom level and pan setting, and adjust the reported
+         //    mouse position accordingly
+         var newScale = SVGRoot.currentScale;
+         var translation = SVGRoot.currentTranslate;
+         TrueCoords.x = (evt.clientX - translation.x)/newScale;
+         TrueCoords.y = (evt.clientY - translation.y)/newScale;
+      };
+
+
+      function HideTooltip( evt )
+      {
+         toolTip.setAttributeNS(null, 'visibility', 'hidden');
+      };
+
+
+      function ShowTooltip( evt )
+      {
+         GetTrueCoords( evt );
+
+         var tipScale = 1/SVGRoot.currentScale;
+         var textWidth = 0;
+         var tspanWidth = 0;
+         var boxHeight = 20;
+
+         tipBox.setAttributeNS(null, 'transform', 'scale(' + tipScale + ',' + tipScale + ')' );
+         tipText.setAttributeNS(null, 'transform', 'scale(' + tipScale + ',' + tipScale + ')' );
+
+         var titleValue = '';
+         var descValue = '';
+         var countValue = '';
+         var avgValue = '';
+         var minValue = '';
+         var maxValue = '';
+         var criticalValue = '';
+         var highValue = '';
+         var mediumValue = '';
+         var lowValue = '';
+         var targetElement = evt.target;
+         if ( lastElement != targetElement )
+         {
+            var targetTitle = targetElement.getElementsByTagName('title').item(0);
+            if ( targetTitle )
+            {
+               // if there is a 'title' element, use its contents for the tooltip title
+               titleValue = targetTitle.firstChild.nodeValue;
+            }
+
+            var targetDesc = targetElement.getElementsByTagName('desc').item(0);
+            if ( targetDesc )
+            {
+               // if there is a 'desc' element, use its contents for the tooltip desc
+               descValue = targetDesc.firstChild.nodeValue;
+
+               if ( '' == titleValue )
+               {
+                  // if there is no 'title' element, use the contents of the 'desc' element for the tooltip title instead
+                  titleValue = descValue;
+                  descValue = '';
+               }
+            }
+
+            var countTitle = targetElement.getElementsByTagName('count').item(0);
+            if ( countTitle )
+            {
+               countValue = countTitle.firstChild.nodeValue;
+            }
+
+            var avgTitle = targetElement.getElementsByTagName('avg').item(0);
+            if ( avgTitle )
+            {
+               avgValue = avgTitle.firstChild.nodeValue;
+            }
+
+            var maxTitle = targetElement.getElementsByTagName('max').item(0);
+            if ( maxTitle )
+            {
+               maxValue = maxTitle.firstChild.nodeValue;
+            }
+
+            var minTitle = targetElement.getElementsByTagName('min').item(0);
+            if ( minTitle )
+            {
+               minValue = minTitle.firstChild.nodeValue;
+            }
+
+            var criticalTitle = targetElement.getElementsByTagName('Critical').item(0);
+            if ( criticalTitle )
+            {
+               criticalValue = criticalTitle.firstChild.nodeValue;
+            }
+
+            var highTitle = targetElement.getElementsByTagName('High').item(0);
+            if ( highTitle )
+            {
+               highValue = highTitle.firstChild.nodeValue;
+            }
+
+            var mediumTitle = targetElement.getElementsByTagName('Medium').item(0);
+            if ( mediumTitle )
+            {
+               mediumValue = mediumTitle.firstChild.nodeValue;
+            }
+
+            var lowTitle = targetElement.getElementsByTagName('Low').item(0);
+            if ( lowTitle )
+            {
+               lowValue = lowTitle.firstChild.nodeValue;
+            }
+
+            // if there is still no 'title' element, use the contents of the 'id' attribute for the tooltip title
+            if ( '' == titleValue )
+            {
+               titleValue = targetElement.getAttributeNS(null, 'id');
+            }
+
+            // selectively assign the tooltip title and desc the proper values,
+            //   and hide those which don't have text values
+            //
+            var titleDisplay = 'none';
+            if ( '' != titleValue )
+            {
+               tipTitle.firstChild.nodeValue = titleValue;
+               titleDisplay = 'inline';
+            }
+            tipTitle.setAttributeNS(null, 'display', titleDisplay );
+
+
+            var descDisplay = 'none';
+            if ( '' != descValue )
+            {
+               tipDesc.firstChild.nodeValue = descValue;
+               descDisplay = 'inline';
+            }
+            tipDesc.setAttributeNS(null, 'display', descDisplay );
+
+            var countDisplay = 'none';
+            if ( '' != countValue )
+            {
+               tipCount.firstChild.nodeValue = countValue;
+               countDisplay = 'inline';
+            }
+            tipCount.setAttributeNS(null, 'display', countDisplay );
+
+            var avgDisplay = 'none';
+            if ( '' != avgValue )
+            {
+               tipAvg.firstChild.nodeValue = avgValue;
+               avgDisplay = 'inline';
+            }
+            tipAvg.setAttributeNS(null, 'display', avgDisplay );
+
+            var maxDisplay = 'none';
+            if ( '' != maxValue )
+            {
+               tipMax.firstChild.nodeValue = maxValue;
+               maxDisplay = 'inline';
+            }
+            tipMax.setAttributeNS(null, 'display', maxDisplay );
+
+            var minDisplay = 'none';
+            if ( '' != minValue )
+            {
+               tipMin.firstChild.nodeValue = minValue;
+               minDisplay = 'inline';
+            }
+            tipMin.setAttributeNS(null, 'display', minDisplay );
+
+            var criticalDisplay = 'none';
+            if ( '' != criticalValue )
+            {
+               tipCritical.firstChild.nodeValue = criticalValue;
+               criticalDisplay = 'inline';
+            }
+            tipCritical.setAttributeNS(null, 'display', criticalDisplay );
+
+            var highDisplay = 'none';
+            if ( '' != highValue )
+            {
+               tipHigh.firstChild.nodeValue = highValue;
+               highDisplay = 'inline';
+            }
+            tipHigh.setAttributeNS(null, 'display', highDisplay );
+
+            var mediumDisplay = 'none';
+            if ( '' != mediumValue )
+            {
+               tipMedium.firstChild.nodeValue = mediumValue;
+               mediumDisplay = 'inline';
+            }
+            tipMedium.setAttributeNS(null, 'display', mediumDisplay );
+
+            var lowDisplay = 'none';
+            if ( '' != lowValue )
+            {
+               tipLow.firstChild.nodeValue = lowValue;
+               lowDisplay = 'inline';
+            }
+            tipLow.setAttributeNS(null, 'display', lowDisplay );
+         }
+
+         // if there are tooltip contents to be displayed, adjust the size and position of the box
+         if ( '' != titleValue )
+         {
+            var xPos = TrueCoords.x + (10 * tipScale);
+            var yPos = TrueCoords.y + (10 * tipScale);
+
+            //return rectangle around text as SVGRect object
+            var outline = tipText.getBBox();
+            tipBox.setAttributeNS(null, 'width', Number(outline.width) + 10);
+            tipBox.setAttributeNS(null, 'height', Number(outline.height) + 10);
+
+            // update position
+            toolTip.setAttributeNS(null, 'transform', 'translate(' + xPos + ',' + yPos + ')');
+            toolTip.setAttributeNS(null, 'visibility', 'visible');
+         }
+      };
+
+   ]]></script>
+
+	<defs>
+    	<filter height="200%" id="f1" width="200%" x="0" y="0">
+      		<feOffset dx="5" dy="5" in="SourceGraphic" result="offOut"/>
+      		<feColorMatrix in="offOut" result="matrixOut" type="matrix" values="0.2 0 0 0 0 0 0.2 0 0 0 0 0 0.2 0 0 0 0 0 1 0"/>
+      		<feGaussianBlur in="matrixOut" result="blurOut" stdDeviation="10"/>
+      		<feBlend in="SourceGraphic" in2="blurOut" mode="normal"/>
+    	</filter>
+  	</defs>
+  	
+	<rect fill="#FAFAF9" height="100%" width="100%" x="0" y="0"/>
+
+  	<text fill="black" font-family="Verdana" font-size="14" x="10" y="20">Generated: Fri Jun 07 16:27:13 BST 2013</text><rect fill="#B8DBFF" filter="url(#f1)" height="50" stroke="#00FF00" stroke-width="2" width="180" x="430" y="150"><desc>org.switchyard.quickstarts.demos.orders.LogisticsService</desc><count>Count 2</count><avg>Avg 10</avg><max>Max 10</max><min>Min 10</min></rect><text fill="#00008F" font-family="Verdana" font-size="10" x="435" y="160">LogisticsService</text><rect fill="#85D6FF" height="20" stroke="#00FF00" stroke-width="1" width="160" x="440" y="170"><desc>deliver</desc><count>Count 2</count><avg>Avg 10</avg><max>Max 10</max><min>Min 10</min></rect><text fill="#00008F" font-family="Verdana" font-size="12" x="445" y="184">deliver</text><rect fill="#B8DBFF" filter="url(#f1)" height="50" stroke="#00FF00" stroke-width="2" width="180" x="50" y="50"><desc>{urn:switchyard-quickstart-demo:orders:1.0}OrderService</desc><count>Count 2</count><avg>Avg 456</avg><max>Max 544</max><min>Min 369</min></rect><text fill="#00008F" font-family="Verdana" font-size="10" x="55" y="60">OrderService</text><rect fill="#85D6FF" height="20" stroke="#00FF00" stroke-width="1" width="160" x="60" y="70"><desc>submitOrder</desc><count>Count 2</count><avg>Avg 456</avg><max>Max 544</max><min>Min 369</min></rect><text fill="#00008F" font-family="Verdana" font-size="12" x="65" y="84">submitOrder</text><rect fill="#B8DBFF" filter="url(#f1)" height="50" stroke="#FF5930" stroke-width="2" width="180" x="430" y="50"><desc>org.switchyard.quickstarts.demos.orders.InventoryService</desc><count>Count 2</count><avg>Avg 263</avg><max>Max 513</max><min>Min 13</min></rect><text fill="#00008F" font-family="Verdana" font-size="10" x="435" y="60">InventoryService</text><rect fill="#85D6FF" height="20" stroke="#FF5930" stroke-width="1" width="160" x="440" y="70"><desc>lookupItem</desc><count>Count 2</count><avg>Avg 263</avg><max>Max 513</max><min>Min 13</min></rect><text fill="#00008F" font-family="Verdana" font-size="12" x="445" y="84">lookupItem</text><polygon points="230,50 430,150 430,200 230,100" style="fill:#00FF00;fill-opacity:0.2"><desc>{urn:switchyard-quickstart-demo:orders:1.0}OrderService -&gt; org.switchyard.quickstarts.demos.orders.LogisticsService</desc><count>Count 2</count><avg>Avg 12</avg><max>Max 12</max><min>Min 12</min></polygon><polygon points="230,50 430,50 430,100 230,100" style="fill:#FF5930;fill-opacity:0.2"><desc>{urn:switchyard-quickstart-demo:orders:1.0}OrderService -&gt; org.switchyard.quickstarts.demos.orders.InventoryService</desc><count>Count 2</count><avg>Avg 264</avg><max>Max 515</max><min>Min 14</min></polygon><line style="stroke:#00FF00;stroke-width:3" x1="220" x2="440" y1="80" y2="180"><desc>org.switchyard.quickstarts.demos.orders.LogisticsService -&gt; deliver</desc><count>Count 2</count><avg>Avg 12</avg><max>Max 12</max><min>Min 12</min></line><line style="stroke:#FF5930;stroke-width:3" x1="220" x2="440" y1="80" y2="80"><desc>org.switchyard.quickstarts.demos.orders.InventoryService -&gt; lookupItem</desc><count>Count 2</count><avg>Avg 264</avg><max>Max 515</max><min>Min 14</min></line>
+
+	<g id="ToolTip" opacity="0.8" pointer-events="none" visibility="hidden">
+		<rect fill="white" height="20" id="tipbox" rx="2" ry="2" stroke="black" width="88" x="0" y="5"/>
+		<text font-family="Arial" font-size="12" id="tipText" x="5" y="20">
+			<tspan font-weight="bold" id="tipTitle" x="5"><![CDATA[ ]]></tspan>
+			<tspan dy="15" fill="blue" id="tipDesc" x="5"><![CDATA[ ]]></tspan>
+			<tspan dy="15" fill="blue" id="tipCount" x="5"><![CDATA[ ]]></tspan>
+			<tspan dy="15" fill="green" id="tipAvg" x="5"><![CDATA[ ]]></tspan>
+			<tspan dy="15" fill="#FFCC00" id="tipMin" x="5"><![CDATA[ ]]></tspan>
+			<tspan dy="15" fill="red" id="tipMax" x="5"><![CDATA[ ]]></tspan>
+			<tspan dy="15" fill="red" id="tipCritical" x="5"><![CDATA[ ]]></tspan>
+			<tspan dy="15" fill="orange" id="tipHigh" x="5"><![CDATA[ ]]></tspan>
+			<tspan dy="15" fill="#FFCC00" id="tipMedium" x="5"><![CDATA[ ]]></tspan>
+			<tspan dy="15" fill="green" id="tipLow" x="5"><![CDATA[ ]]></tspan>
+		</text>
+	</g>
+
+</svg>
+

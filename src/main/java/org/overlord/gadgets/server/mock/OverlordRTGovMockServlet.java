@@ -51,6 +51,9 @@ public class OverlordRTGovMockServlet extends HttpServlet {
         if ("/call/trace/instance".equals(path)) {
             resp.setContentType("application/json");
             send(resp, "calltrace.json");
+        } else if ("/service/dependency/overview".equals(path)) {
+            resp.setContentType("image/svg+xml");
+            send(resp, "service-overview.svg");
         } else {
             super.doGet(req, resp);
         }

@@ -85,6 +85,8 @@ import org.overlord.gadgets.web.server.filters.JSONPFilter;
 import org.overlord.gadgets.web.server.http.auth.AuthenticationConstants;
 import org.overlord.gadgets.web.server.http.auth.BasicAuthenticationProvider;
 import org.overlord.gadgets.web.server.listeners.ShindigResteasyBootstrapServletContextListener;
+import org.overlord.gadgets.web.server.servlets.RestProxyBasicAuthProvider;
+import org.overlord.gadgets.web.server.servlets.RestProxyServlet;
 
 /**
  * Dev environment bootstrapper for rtgov/bootstrapper.
@@ -117,10 +119,16 @@ public class GadgetDevServer extends DevServer {
     @Override
     protected void preConfig() {
         System.setProperty(Bootstrap.HIBERNATE_HBM2DDL_AUTO, "create-drop");
+        // Configure shindig data services authentication
         System.setProperty(AuthenticationConstants.CONFIG_AUTHENTICATION_PROVIDER, BasicAuthenticationProvider.class.getName());
         System.setProperty(AuthenticationConstants.CONFIG_BASIC_AUTH_USER, "rest-client");
         System.setProperty(AuthenticationConstants.CONFIG_BASIC_AUTH_PASS, "rest-client");
         System.setProperty(AuthenticationConstants.CONFIG_AUTHENTICATION_ENDPOINTS, "/overlord-rtgov/");
+        // Configure REST proxy authentication
+        System.setProperty("gadget-server.rest-proxy.service-overview.authentication-provider", RestProxyBasicAuthProvider.class.getName());
+        System.setProperty("gadget-server.rest-proxy.service-overview.authentication.basic.username", "rest-client");
+        System.setProperty("gadget-server.rest-proxy.service-overview.authentication.basic.password", "rest-client");
+
         // Add JNDI resources
         try {
             InitialContext ctx = new InitialContext();
@@ -250,6 +258,11 @@ public class GadgetDevServer extends DevServer {
         gadgetWeb.addServlet(OAuth2Servlet.class, "/oauth2/*");
         gadgetWeb.addServlet(RpcSwfServlet.class, "/xpc*");
         gadgetWeb.addServlet(HttpServletDispatcher.class, "/rs/*");
+        // Service Overview REST service proxy servlet
+        ServletHolder soProxyServlet = gadgetWeb.addServlet(RestProxyServlet.class, "/service/dependency/overview");
+        soProxyServlet.setInitParameter("proxy-name", "service-overview");
+        soProxyServlet.setInitParameter("proxy-url", "SCHEME://HOST:PORT/overlord-rtgov/service/dependency/overview");
+        // Overlord Header JS servlet
         ServletHolder overlordHeaderJS = new ServletHolder(OverlordHeaderDataJS.class);
         overlordHeaderJS.setInitParameter("app-id", "gadget-server");
         gadgetWeb.addServlet(overlordHeaderJS, "/js/overlord-header-data.js");

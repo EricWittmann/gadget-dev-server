@@ -8,8 +8,8 @@
 
   <properties>
     <overlord-commons.version>1.0.6</overlord-commons.version>
-    <gadget.version>1.0.0-SNAPSHOT</gadget.version>
-    <rtgov.version>1.0.0-SNAPSHOT</rtgov.version>
+    <gadget.version>2.0.0-SNAPSHOT</gadget.version>
+    <rtgov.version>2.0.0-SNAPSHOT</rtgov.version>
     <shiro.version>1.1.0</shiro.version>
     <resteasy.version>2.3.5.Final</resteasy.version>
   </properties>

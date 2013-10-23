@@ -1,0 +1,39 @@
+[
+  {
+    "value": { 
+      "serviceType" : "Service1",
+      "interfaces" : [
+        {
+          "operations" : [
+            {
+              "name" : "Operation1"
+            },
+            {
+              "name" : "Operation3"
+            },
+            {
+              "name" : "Operation2"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "value": { 
+      "serviceType" : "Service2",
+      "interfaces" : [
+        {
+          "operations" : [
+            {
+              "name" : "OperationA"
+            },
+            {
+              "name" : "OperationB"
+            }
+          ]
+        }
+      ]
+    }
+  }
+]

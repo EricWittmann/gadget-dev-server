@@ -18,8 +18,10 @@ package org.overlord.gadgets.server.mock;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.StringWriter;
 
 import javax.servlet.ServletException;
+import javax.servlet.ServletInputStream;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -68,10 +70,32 @@ public class OverlordRTGovMockServlet extends HttpServlet {
         String path = req.getServletPath();
         System.out.println("Mock Request (POST): " + path);
         if ("/acm/query".equals(path)) {
-            resp.setContentType("application/json");
-            send(resp, "acm-query.json");
+            mockAcmQuery(req, resp);
         } else {
             super.doPost(req, resp);
+        }
+    }
+
+    /**
+     * @param req 
+     * @param resp
+     * @throws IOException
+     */
+    private void mockAcmQuery(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        ServletInputStream inputStream = req.getInputStream();
+        StringWriter writer = new StringWriter();
+        IOUtils.copy(inputStream, writer);
+        String postData = writer.toString();
+        System.out.println("ACM Query post data: " + postData);
+        
+        if (postData.contains("ServiceDefinitions")) {
+            resp.setContentType("application/json");
+            System.out.println("Serving up the service defs.");
+            send(resp, "service-defs.json");
+        } else {
+            resp.setContentType("application/json");
+            System.out.println("Serving up the data.");
+            send(resp, "acm-query.json");
         }
     }
 

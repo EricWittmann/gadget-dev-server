@@ -133,8 +133,9 @@ public class GadgetDevServer extends DevServer {
         try {
             InitialContext ctx = new InitialContext();
             ctx.bind("java:jboss", new InitialContext());
+            ctx.bind("java:jboss/datasources", new InitialContext());
             ds = createInMemoryDatasource();
-            ctx.bind("java:jboss/GadgetServer", ds);
+            ctx.bind("java:jboss/datasources/GadgetServer", ds);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

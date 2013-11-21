@@ -102,6 +102,7 @@ public class GadgetDevServer extends DevServer {
      */
     public static void main(String [] args) throws Exception {
         GadgetDevServer devServer = new GadgetDevServer(args);
+        devServer.enableDebug();
         devServer.go();
     }
 
@@ -124,6 +125,10 @@ public class GadgetDevServer extends DevServer {
         System.setProperty(AuthenticationConstants.CONFIG_BASIC_AUTH_USER, "rest-client");
         System.setProperty(AuthenticationConstants.CONFIG_BASIC_AUTH_PASS, "rest-client");
         System.setProperty(AuthenticationConstants.CONFIG_AUTHENTICATION_ENDPOINTS, "/overlord-rtgov/");
+
+        System.setProperty(AuthenticationConstants.CONFIG_CONNECTION_TIMEOUT, "10000");
+        System.setProperty(AuthenticationConstants.CONFIG_READ_TIMEOUT, "60000");
+
         // Configure REST proxy authentication
         System.setProperty("gadget-server.rest-proxy.service-overview.authentication-provider", RestProxyBasicAuthProvider.class.getName());
         System.setProperty("gadget-server.rest-proxy.service-overview.authentication.basic.username", "rest-client");
